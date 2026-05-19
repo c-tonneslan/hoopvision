@@ -54,6 +54,16 @@ def main():
     Xtr, ytr = train[feats].values, train["made"].values
     Xte, yte = test[feats].values, test["made"].values
 
+    # Pull a small validation slice out of train so xgb's early stopping
+    # doesn't peek at the holdout season. Seeded for reproducibility.
+    rng = np.random.default_rng(11)
+    val_idx = rng.choice(len(Xtr), size=int(len(Xtr) * 0.1), replace=False)
+    val_mask = np.zeros(len(Xtr), dtype=bool)
+    val_mask[val_idx] = True
+    Xva, yva = Xtr[val_mask], ytr[val_mask]
+    Xtr, ytr = Xtr[~val_mask], ytr[~val_mask]
+    print(f"  carved val: {len(Xva):,}  train after carve: {len(Xtr):,}")
+
     os.makedirs(args.out_dir, exist_ok=True)
     results = []
 
@@ -78,14 +88,15 @@ def main():
     p_logit = logit.predict_proba(Xte_s)[:, 1]
     results.append(evaluate("logistic", yte, p_logit))
 
-    # xgboost
+    # xgboost with early stopping on the carved val slice
     xgb = XGBClassifier(
-        n_estimators=500, max_depth=5, learning_rate=0.05,
+        n_estimators=1000, max_depth=5, learning_rate=0.05,
         subsample=0.85, colsample_bytree=0.85, reg_lambda=1.0,
         objective="binary:logistic", eval_metric="logloss",
-        tree_method="hist", n_jobs=-1,
+        tree_method="hist", early_stopping_rounds=25, n_jobs=-1,
     )
-    xgb.fit(Xtr, ytr, eval_set=[(Xte, yte)], verbose=False)
+    xgb.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
+    print(f"xgb stopped at iteration {xgb.best_iteration} (val logloss {xgb.best_score:.4f})")
     p_xgb = xgb.predict_proba(Xte)[:, 1]
     results.append(evaluate("xgboost", yte, p_xgb))
 

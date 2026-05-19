@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import sys
 
 import numpy as np
 import pandas as pd
@@ -76,3 +78,14 @@ def test_metrics():
     # without shooter ID and defender features, AUC tops out around 0.68
     assert xgb_row["auc"] > 0.65
     assert xgb_row["log_loss"] < 0.69
+
+
+def test_predict_cli_rejects_off_court_distance():
+    """A 99-foot shot isn't a thing; the CLI should refuse it."""
+    script = os.path.join(ROOT, "scripts", "predict.py")
+    result = subprocess.run(
+        [sys.executable, script, "--distance", "99", "--shot-type", "jumper"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "distance" in result.stderr.lower()
