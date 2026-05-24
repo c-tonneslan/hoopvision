@@ -38,6 +38,10 @@ def main():
         raise SystemExit("distance must be between 0 and 94 feet")
     if not 1 <= args.qtr <= 6:
         raise SystemExit("qtr must be 1-6 (5/6 is OT)")
+    # 12-minute quarters = 720s; OT is 5 min = 300s, but the model never
+    # sees a value above 720 in training, so cap the bigger one.
+    if args.clock < 0 or args.clock > 720:
+        raise SystemExit("clock must be 0-720 seconds (one quarter)")
 
     numeric = [args.distance, args.angle, 1 if args.is_three else 0,
                args.margin, args.clock, args.qtr]
