@@ -14,7 +14,6 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.collections import LineCollection
 
 plt.rcParams.update({
     "figure.dpi": 130,

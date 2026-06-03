@@ -59,7 +59,7 @@ def build(data_dir, out_path):
     raw = pd.concat(frames, ignore_index=True)
     print(f"  raw rows: {len(raw):,}")
 
-    shots = raw[raw["shooting_play"] == True].copy()
+    shots = raw[raw["shooting_play"].fillna(False)].copy()
     shots = shots[~shots["type_text"].str.contains("Free Throw", na=False)]
     shots = shots.dropna(subset=["coordinate_x", "coordinate_y"])
     print(f"  field-goal attempts with coords: {len(shots):,}")
@@ -80,7 +80,7 @@ def build(data_dir, out_path):
     shots = shots[(shots["distance"] < 35) & (shots["distance"] > 0.5)]
 
     # made flag
-    shots["made"] = (shots["scoring_play"] == True).astype(int)
+    shots["made"] = shots["scoring_play"].fillna(False).astype(int)
     # three-pointer flag derived from court geometry, NOT score_value
     # (score_value is 0 for any miss, so using it would leak the outcome).
     # NBA arc: 23.75 ft above the break, 22 ft in the corners (|y| > 22).
@@ -106,7 +106,7 @@ def build(data_dir, out_path):
     ]].reset_index(drop=True)
 
     print(f"  final rows: {len(out):,}  fg%: {out['made'].mean():.3f}")
-    print(f"  by type:")
+    print("  by type:")
     print(out.groupby("shot_type")["made"].agg(["size", "mean"]).round(3))
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
